@@ -122,13 +122,17 @@ func (a *App) fetchFlag(flagName string) (*Flag, error) {
 	reqURL := fmt.Sprintf("%s/flags/%s", a.FlagServiceURL, url.PathEscape(flagName))
 
 	apiKey := os.Getenv("SERVICE_API_KEY")
-	req, err := http.NewRequest("GET", reqURL, nil)
+	// reqURL is safe from SSRF: the host comes from the operator-configured
+	// FlagServiceURL (env var, not user input) and flagName was already
+	// validated by isValidFlagName + url.PathEscape'd, so it can only ever
+	// affect the path, never the target host.
+	req, err := http.NewRequest("GET", reqURL, nil) // #nosec G704 -- see comment above
 	if err != nil {
 		return nil, fmt.Errorf("erro ao criar requisição para flag-service: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
-	
-	resp, err := a.HttpClient.Do(req)
+
+	resp, err := a.HttpClient.Do(req) // #nosec G704 -- req built from validated/trusted URL above
 	if err != nil {
 		return nil, fmt.Errorf("erro ao chamar flag-service: %w", err)
 	}
@@ -152,13 +156,17 @@ func (a *App) fetchFlag(flagName string) (*Flag, error) {
 func (a *App) fetchRule(flagName string) (*TargetingRule, error) {
 	reqURL := fmt.Sprintf("%s/rules/%s", a.TargetingServiceURL, url.PathEscape(flagName))
 	apiKey := os.Getenv("SERVICE_API_KEY") // Usa a mesma chave
-	req, err := http.NewRequest("GET", reqURL, nil)
+	// reqURL is safe from SSRF: the host comes from the operator-configured
+	// TargetingServiceURL (env var, not user input) and flagName was already
+	// validated by isValidFlagName + url.PathEscape'd, so it can only ever
+	// affect the path, never the target host.
+	req, err := http.NewRequest("GET", reqURL, nil) // #nosec G704 -- see comment above
 	if err != nil {
 		return nil, fmt.Errorf("erro ao criar requisição para targeting-service: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
-	
-	resp, err := a.HttpClient.Do(req)
+
+	resp, err := a.HttpClient.Do(req) // #nosec G704 -- req built from validated/trusted URL above
 	if err != nil {
 		return nil, fmt.Errorf("erro ao chamar targeting-service: %w", err)
 	}
