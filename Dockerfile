@@ -10,7 +10,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o evaluation-service .
 
 FROM alpine:3.19
 
-RUN apk add --no-cache ca-certificates && \
+RUN apk add --no-cache ca-certificates=20250911-r0 && \
     addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
