@@ -8,7 +8,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 )
@@ -18,8 +20,22 @@ const (
 	CACHE_TTL = 30 * time.Second
 )
 
+// flagNameRegex restringe os nomes de flag a um formato seguro, evitando que
+// o parâmetro controlado pelo usuário seja usado para manipular a URL das
+// chamadas HTTP para os microsserviços (SSRF / path injection).
+var flagNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,100}$`)
+
+// isValidFlagName valida o nome da flag antes de usá-lo em qualquer chamada externa.
+func isValidFlagName(flagName string) bool {
+	return flagNameRegex.MatchString(flagName)
+}
+
 // getDecision é o wrapper principal
 func (a *App) getDecision(userID, flagName string) (bool, error) {
+	if !isValidFlagName(flagName) {
+		return false, fmt.Errorf("nome de flag inválido: %q", flagName)
+	}
+
 	// 1. Obter os dados da flag (do cache ou dos serviços)
 	info, err := a.getCombinedFlagInfo(flagName)
 	if err != nil {
@@ -103,10 +119,13 @@ func (a *App) fetchFromServices(flagName string) (*CombinedFlagInfo, error) {
 
 // fetchFlag (função helper)
 func (a *App) fetchFlag(flagName string) (*Flag, error) {
-	url := fmt.Sprintf("%s/flags/%s", a.FlagServiceURL, flagName)
+	reqURL := fmt.Sprintf("%s/flags/%s", a.FlagServiceURL, url.PathEscape(flagName))
 
 	apiKey := os.Getenv("SERVICE_API_KEY")
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar requisição para flag-service: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	
 	resp, err := a.HttpClient.Do(req)
@@ -131,9 +150,12 @@ func (a *App) fetchFlag(flagName string) (*Flag, error) {
 }
 
 func (a *App) fetchRule(flagName string) (*TargetingRule, error) {
-	url := fmt.Sprintf("%s/rules/%s", a.TargetingServiceURL, flagName)
+	reqURL := fmt.Sprintf("%s/rules/%s", a.TargetingServiceURL, url.PathEscape(flagName))
 	apiKey := os.Getenv("SERVICE_API_KEY") // Usa a mesma chave
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao criar requisição para targeting-service: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	
 	resp, err := a.HttpClient.Do(req)
