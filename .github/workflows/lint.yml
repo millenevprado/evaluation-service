@@ -1,4 +1,4 @@
-name: CI - evaluation-service
+name: Lint & Static Analysis
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  build-test:
-    name: Build & Unit Test
+  lint:
+    name: Lint & Static Analysis
     runs-on: ubuntu-latest
 
     steps:
@@ -21,11 +21,7 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Build
-        run: go build -v ./...
-
-      - name: Run unit tests
-        run: go test -v ./...
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
