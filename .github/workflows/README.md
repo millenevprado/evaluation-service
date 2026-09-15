@@ -1,26 +1,32 @@
 # CI/CD Workflows
 
-Este diretório contém os workflows do GitHub Actions do `evaluation-service`. Todos são disparados em `push` e `pull_request` para a branch `main`.
+Este diretório contém o workflow do GitHub Actions do `evaluation-service` (`ci.yml`), disparado em `push` e `pull_request` para a branch `main`. Os jobs rodam em sequência via `needs`, então uma falha em um estágio impede os estágios seguintes de rodar.
 
-## `build-test.yml` — Build & Unit Test
+## `build-test` — Build & Unit Test
 
 - Configura o Go a partir do `go.mod`.
 - Baixa as dependências (`go mod download`).
 - Compila o projeto (`go build ./...`).
 - Executa os testes unitários (`go test ./...`).
 
-## `lint.yml` — Lint & Static Analysis
+## `lint` — Lint & Static Analysis
 
 - Executa `golangci-lint` para checagem de estilo e qualidade do código Go.
 
-## `security-scan.yml` — Security Scan (SAST & SCA)
+## `security-scan` — Security Scan (SAST & SCA)
 
-Dois jobs independentes:
+Depende de `build-test` e `lint`.
 
-- **security-scan**: roda `gosec` (SAST) contra o código-fonte com severidade e confiança mínimas `high`, e `trivy` (SCA) em modo filesystem para vulnerabilidades `CRITICAL` nas dependências.
-- **gitleaks**: escaneia o histórico do repositório em busca de segredos vazados (chaves, tokens, credenciais).
+- Roda `gosec` (SAST) contra o código-fonte com severidade e confiança mínimas `high`.
+- Roda `trivy` (SCA) em modo filesystem para vulnerabilidades `CRITICAL` nas dependências.
 
-## `docker-build-push.yml` — Docker Build & Push
+## `gitleaks` — Secret Scanning
+
+- Escaneia o histórico do repositório em busca de segredos vazados (chaves, tokens, credenciais).
+
+## `docker-build-push` — Docker Build & Push
+
+Depende de `security-scan` e `gitleaks` — só roda se ambos passarem.
 
 - Faz lint do `Dockerfile` com `hadolint`.
 - Gera uma tag de imagem no formato `v1.0.0-<sha curto>`.
